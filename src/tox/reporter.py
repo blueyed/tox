@@ -60,7 +60,11 @@ class Reporter(object):
         start = time.time()
         yield
         duration = time.time() - start
-        self.verbosity2(
+        if self.config and self.config.option.durations:
+            disp_durations = self.verbosity0
+        else:
+            disp_durations = self.verbosity2
+        disp_durations(
             "{} finish: {} after {:.2f} seconds".format(name, msg, duration), bold=True
         )
 
@@ -126,9 +130,11 @@ class Reporter(object):
 _INSTANCE = Reporter()
 
 
-def update_default_reporter(quiet_level, verbose_level):
+def update_default_reporter(quiet_level, verbose_level, config=None):
     _INSTANCE.quiet_level = quiet_level
     _INSTANCE.verbose_level = verbose_level
+    if config:
+        _INSTANCE.config = config
 
 
 def has_level(of):

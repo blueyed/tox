@@ -251,7 +251,7 @@ def parseconfig(args, plugins=()):
     """
     pm = get_plugin_manager(plugins)
     config, option = parse_cli(args, pm)
-    update_default_reporter(config.option.quiet_level, config.option.verbose_level)
+    update_default_reporter(config.option.quiet_level, config.option.verbose_level, config=config)
 
     for config_file in propose_configs(option.configfile):
         config_type = config_file.basename

@@ -18,3 +18,10 @@ def add_verbosity_commands(parser):
         default=0,
         help="progressively silence reporting output.",
     )
+    parser.add_argument(
+        "--durations",
+        action="store_true",
+        dest="durations",
+        default=False,
+        help="Display durations for actions always (as with -vv).",
+    )
