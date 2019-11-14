@@ -38,7 +38,9 @@ class Action(object):
         self.python = python
 
     def __enter__(self):
-        msg = "{} {}".format(self.msg, " ".join(map(str, self.args)))
+        msg = self.msg
+        if self.args:
+            msg += "({})".format(", ".join(map(str, self.args)))
         self._timed_report = reporter.timed_operation(self.name, msg)
         self._timed_report.__enter__()
 
