@@ -11,8 +11,7 @@ from .command import CommandLog
 class EnvLog(object):
     """Report the status of a tox environment"""
 
-    def __init__(self, result_log, name, dict):
-        self.reportlog = result_log
+    def __init__(self, name, dict):
         self.name = name
         self.dict = dict
 
