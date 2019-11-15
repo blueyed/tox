@@ -617,6 +617,24 @@ class VirtualEnv(object):
                 return False
             command_path = self.getcommandpath("python")
             envlog.set_python_info(command_path)
+
+            # HACK: Display Python name + version.
+            # Gets displayed twice with isolated build, via
+            # - src/tox/package/builder/isolated.py(28)build()
+            # - src/tox/session/commands/run/sequential.py(9)run_sequential()
+            python_info = envlog.dict["python"]
+            try:
+                version = python_info["version"]
+            except KeyError:
+                version = python_info["version_info"]
+            else:
+                version = version.split("\n", 1)[0].rstrip()
+            reporter.verbosity0(
+                "Using {} ({}).".format(
+                    python_info.get("name", python_info.get("executable")), version
+                )
+            )
+
             return True
 
     def finishvenv(self):
