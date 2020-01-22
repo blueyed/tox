@@ -837,7 +837,7 @@ class TestIniParser:
             reader.getbool("key3")
         with pytest.raises(tox.exception.ConfigError) as excinfo:
             reader.getbool("key5")
-        msg, = excinfo.value.args
+        (msg,) = excinfo.value.args
         assert msg == "key5: boolean value 'yes' needs to be 'True' or 'False'"
 
 
@@ -2103,6 +2103,17 @@ class TestGlobalOptions:
     def test_quiet(self, args, expected, newconfig):
         config = newconfig(args, "")
         assert config.option.quiet_level == expected
+
+    def test_substitution_jenkins_global(self, monkeypatch, newconfig):
+        monkeypatch.setenv("HUDSON_URL", "xyz")
+        config = newconfig(
+            """
+            [tox:tox]
+            envlist = py37
+        """,
+            filename="setup.cfg",
+        )
+        assert "py37" in config.envconfigs
 
     def test_substitution_jenkins_default(self, monkeypatch, newconfig):
         monkeypatch.setenv("HUDSON_URL", "xyz")
