@@ -160,6 +160,21 @@ Global settings are defined under the ``tox`` section as:
     Name of the virtual environment used to create a source distribution from the
     source tree.
 
+.. conf:: interrupt_timeout ^ float ^ 0.3
+
+    .. versionadded:: 3.15.0
+
+    When tox is interrupted, it propagates the signal to the child process,
+    waits :conf:``interrupt_timeout`` seconds, and sends it a SIGTERM if it hasn't
+    exited.
+
+.. conf:: terminate_timeout ^ float ^ 0.2
+
+    .. versionadded:: 3.15.0
+
+    When tox is interrupted, it propagates the signal to the child process,
+    waits :conf:``interrupt_timeout`` seconds, sends it a SIGTERM, waits
+    :conf:``terminate_timeout`` seconds, and sends it a SIGKILL if it hasn't exited.
 
 Jenkins override
 ++++++++++++++++
@@ -385,10 +400,11 @@ Complete list of settings that you can put into ``testenv*`` sections:
     Some variables are always passed through to ensure the basic functionality
     of standard library functions or tooling like pip:
 
-    * passed through on all platforms: ``CURL_CA_BUNDLE`, ``PATH``,
+    * passed through on all platforms: ``CURL_CA_BUNDLE``, ``PATH``,
       ``LANG``, ``LANGUAGE``,
       ``LD_LIBRARY_PATH``, ``PIP_INDEX_URL``,
-      ``REQUESTS_CA_BUNDLE``, ``SSL_CERT_FILE``
+      ``REQUESTS_CA_BUNDLE``, ``SSL_CERT_FILE``,
+      ``HTTP_PROXY``, ``HTTPS_PROXY``, ``NO_PROXY``
     * Windows: ``SYSTEMDRIVE``, ``SYSTEMROOT``, ``PATHEXT``, ``TEMP``, ``TMP``
        ``NUMBER_OF_PROCESSORS``, ``USERPROFILE``, ``MSYSTEM``
     * Others (e.g. UNIX, macOS): ``TMPDIR``
@@ -444,6 +460,13 @@ Complete list of settings that you can put into ``testenv*`` sections:
 
     This is useful for situations where hardlinks don't work (e.g. running in
     VMS with Windows guests).
+
+.. conf:: download ^ true|false ^ false
+
+    .. versionadded:: 3.10
+
+    Set to ``true`` if you want virtualenv to upgrade pip/wheel/setuptools to
+    the latest version.
 
 .. conf:: args_are_paths ^ true|false ^ false
 
