@@ -11,6 +11,103 @@ with advance notice in the **Deprecations** section of releases.
 
 .. towncrier release notes start
 
+v3.16.1 (2020-06-29)
+--------------------
+
+Bugfixes
+^^^^^^^^
+
+- Fixed the support for using ``{temp_dir}`` in ``tox.ini`` - by :user:`webknjaz`
+  `#1609 <https://github.com/tox-dev/tox/issues/1609>`_
+
+
+v3.16.0 (2020-06-26)
+--------------------
+
+Features
+^^^^^^^^
+
+- Allow skipping the package and installation step when passing the ``--skip-pkg-install``. This should be used in pair with the ``--notest``, so you can separate environment setup and test run:
+
+   .. code-block:: console
+
+      tox -e py --notest
+      tox -e py --skip-pkg-install
+
+  by :user:`gaborbernat`.
+  `#1605 <https://github.com/tox-dev/tox/issues/1605>`_
+
+
+Miscellaneous
+^^^^^^^^^^^^^
+
+- Improve config parsing performance by precompiling commonly used regular expressions - by :user:`brettlangdon`
+  `#1603 <https://github.com/tox-dev/tox/issues/1603>`_
+
+
+v3.15.2 (2020-06-06)
+--------------------
+
+Bugfixes
+^^^^^^^^
+
+- Add an option to allow a process to suicide before sending the SIGTERM. - by :user:`jhesketh`
+  `#1497 <https://github.com/tox-dev/tox/issues/1497>`_
+- PyPy 7.3.1 on Windows uses the ``Script`` folder instead of ``bin``. - by :user:`gaborbernat`
+  `#1597 <https://github.com/tox-dev/tox/issues/1597>`_
+
+
+Miscellaneous
+^^^^^^^^^^^^^
+
+- Allow to run the tests with pip 19.3.1 once again while preserving the ability to use pip 20.1 - by :user:`hroncok`
+  `#1594 <https://github.com/tox-dev/tox/issues/1594>`_
+
+
+v3.15.1 (2020-05-20)
+--------------------
+
+Bugfixes
+^^^^^^^^
+
+- ``tox --showconfig`` no longer tries to interpolate '%' signs.
+  `#1585 <https://github.com/tox-dev/tox/issues/1585>`_
+
+
+v3.15.0 (2020-05-02)
+--------------------
+
+Bugfixes
+^^^^^^^^
+
+- Respect attempts to change ``PATH`` via ``setenv`` - by :user:`aklajnert`.
+  `#1423 <https://github.com/tox-dev/tox/issues/1423>`_
+- Fix parsing of architecture in python interpreter name. - by :user:`bruchar1`
+  `#1542 <https://github.com/tox-dev/tox/issues/1542>`_
+- Prevent exception when command is empty. - by :user:`bruchar1`
+  `#1544 <https://github.com/tox-dev/tox/issues/1544>`_
+- Fix irrelevant Error message for invalid argument when running outside a directory with tox support files by :user:`nkpro2000sr`.
+  `#1547 <https://github.com/tox-dev/tox/issues/1547>`_
+
+
+Features
+^^^^^^^^
+
+- Allow parallel mode without arguments. - by :user:`ssbarnea`
+  `#1418 <https://github.com/tox-dev/tox/issues/1418>`_
+- Allow generative section name expansion. - by :user:`bruchar1`
+  `#1545 <https://github.com/tox-dev/tox/issues/1545>`_
+- default to passing the env var PIP_EXTRA_INDEX_URL by :user:`georgealton`.
+  `#1561 <https://github.com/tox-dev/tox/issues/1561>`_
+
+
+Documentation
+^^^^^^^^^^^^^
+
+- Improve documentation about config by adding tox environment description at start - by :user:`stephenfin`.
+  `#1573 <https://github.com/tox-dev/tox/issues/1573>`_
+
+
 v3.14.6 (2020-03-25)
 --------------------
 
@@ -22,6 +119,9 @@ Bugfixes
   `#1537 <https://github.com/tox-dev/tox/issues/1537>`_
 - Fix ``tox -h`` and ``tox --hi`` shows an error when run outside a directory with tox support files by :user:`nkpro2000sr`.
   `#1539 <https://github.com/tox-dev/tox/issues/1539>`_
+- Fix ValueError on ``tox -l`` for a ``tox.ini`` file that does not contain an
+  ``envlist`` definition. - by :user:`jquast`.
+  `#1343 <https://github.com/tox-dev/tox/issues/1343>`_
 
 
 v3.14.5 (2020-02-16)

@@ -24,7 +24,7 @@ def test_showconfig_with_force_dep_version(cmd, initproj):
         deps=
             dep1==2.3
             dep2
-        """
+        """,
         },
     )
     parser = load_config(("--showconfig",), cmd)
@@ -48,7 +48,7 @@ def setup_mixed_conf(initproj):
 
             [testenv:docs]
             changedir = docs
-            """
+            """,
         },
     )
 
@@ -89,6 +89,21 @@ def test_showconfig(cmd, setup_mixed_conf, args, expected):
     assert found_sections == expected
 
 
+def test_showconfig_interpolation(cmd, initproj):
+    initproj(
+        "no_interpolation",
+        filedefs={
+            "tox.ini": """
+        [tox]
+        envlist = %s
+        [testenv:%s]
+        commands = python -c "print('works')"
+        """,
+        },
+    )
+    load_config(("--showconfig",), cmd)
+
+
 def test_config_specific_ini(tmpdir, cmd):
     ini = tmpdir.ensure("hello.ini")
     output = load_config(("-c", ini, "--showconfig"), cmd)
@@ -105,8 +120,8 @@ def test_override_workdir(cmd, initproj):
         [tox]
         toxworkdir={}
         """.format(
-                baddir
-            )
+                baddir,
+            ),
         },
     )
     result = cmd("--workdir", gooddir, "--showconfig")

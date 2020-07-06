@@ -28,7 +28,7 @@ def test_getsupportedinterpreter(monkeypatch, newconfig, mocksession):
         [testenv:python]
         basepython={}
         """.format(
-            sys.executable
+            sys.executable,
         ),
     )
     mocksession.new_config(config)
@@ -353,6 +353,25 @@ def test_env_variables_added_to_needs_reinstall(tmpdir, mocksession, newconfig, 
     # for backward compatibility, and to match behavior of venv.run_install_command()
     assert "TEMP_NOPASS_VAR" in env
     assert env["TEMP_NOPASS_VAR"] == "456"
+
+
+def test_test_empty_commands(newmocksession):
+    mocksession = newmocksession(
+        [],
+        """\
+        [testenv]
+        commands =
+            {posargs}
+            echo foo bar
+        """,
+    )
+    venv = mocksession.getvenv("python")
+    with mocksession.newaction(venv.name, "update") as action:
+        venv.update(action)
+    venv.test()
+    # The first command is empty. It should be skipped.
+    # Therefore, echo foo bar has index 0.
+    mocksession.report.expect("verbosity0", "*run-test:*commands?0? | echo foo bar")
 
 
 def test_test_hashseed_is_in_output(newmocksession, monkeypatch):
@@ -1042,13 +1061,13 @@ def test_tox_testenv_interpret_shebang_long_example(tmpdir):
     testfile.write(
         "#!this-is-an-example-of-a-very-long-interpret-directive-what-should-"
         "be-directly-invoked-when-tox-needs-to-invoked-the-provided-script-"
-        "name-in-the-argument-list"
+        "name-in-the-argument-list",
     )
     args = prepend_shebang_interpreter(base_args)
     expected = [
         "this-is-an-example-of-a-very-long-interpret-directive-what-should-be-"
         "directly-invoked-when-tox-needs-to-invoked-the-provided-script-name-"
-        "in-the-argument-list"
+        "in-the-argument-list",
     ]
 
     assert args == expected + base_args
@@ -1062,7 +1081,7 @@ def test_create_download(mocksession, newconfig, download):
         [testenv:env]
         {}
         """.format(
-            "download={}".format(download) if download else ""
+            "download={}".format(download) if download else "",
         ),
     )
     mocksession.new_config(config)
@@ -1077,3 +1096,26 @@ def test_create_download(mocksession, newconfig, download):
     else:
         assert "--no-download" in map(str, args)
     mocksession._clearmocks()
+
+
+def test_path_change(tmpdir, mocksession, newconfig, monkeypatch):
+    config = newconfig(
+        [],
+        """\
+        [testenv:python]
+        setenv =
+            PATH = {env:PATH}{:}{toxinidir}/bin
+        """,
+    )
+    pkg = tmpdir.ensure("package.tar.gz")
+    mocksession._clearmocks()
+    mocksession.new_config(config)
+    venv = mocksession.getvenv("python")
+    installpkg(venv, pkg)
+    venv.test()
+
+    pcalls = mocksession._pcalls
+    for x in pcalls:
+        path = x.env["PATH"]
+        assert os.environ["PATH"] in path
+        assert path.endswith(str(venv.envconfig.config.toxinidir) + "/bin")

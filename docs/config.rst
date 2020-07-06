@@ -160,22 +160,6 @@ Global settings are defined under the ``tox`` section as:
     Name of the virtual environment used to create a source distribution from the
     source tree.
 
-.. conf:: interrupt_timeout ^ float ^ 0.3
-
-    .. versionadded:: 3.15.0
-
-    When tox is interrupted, it propagates the signal to the child process,
-    waits :conf:``interrupt_timeout`` seconds, and sends it a SIGTERM if it hasn't
-    exited.
-
-.. conf:: terminate_timeout ^ float ^ 0.2
-
-    .. versionadded:: 3.15.0
-
-    When tox is interrupted, it propagates the signal to the child process,
-    waits :conf:``interrupt_timeout`` seconds, sends it a SIGTERM, waits
-    :conf:``terminate_timeout`` seconds, and sends it a SIGKILL if it hasn't exited.
-
 Jenkins override
 ++++++++++++++++
 
@@ -189,23 +173,50 @@ by using the ``tox:jenkins`` section:
     commands = ...  # override settings for the jenkins context
 
 
-tox environment settings
-------------------------
+tox environments
+----------------
 
-Test environments are defined by a:
+Test environments are defined under the ``testenv`` section and individual
+``testenv:NAME`` sections, where ``NAME`` is the name of a specific
+environment.
 
 .. code-block:: ini
-
-    [testenv:NAME]
-    commands = ...
-
-section.  The ``NAME`` will be the name of the virtual environment.
-Defaults for each setting in this section are looked up in the::
 
     [testenv]
     commands = ...
 
-``testenv`` default section.
+    [testenv:NAME]
+    commands = ...
+
+Settings defined in the top-level ``testenv`` section are automatically
+inherited by individual environments unless overridden. Test environment names
+can consist of alphanumeric characters and dashes; for example:
+``py38-django30``. The name will be split on dashes into multiple factors,
+meaning ``py38-django30`` will be split into two factors: ``py38`` and
+``django30``. *tox* defines a number of default factors, which correspond to
+various versions and implementations of Python and provide default values for
+:conf:`basepython`:
+
+- ``pyNM``: configures ``basepython = pythonN.M``
+- ``pyN``: configures ``basepython = pythonN``
+- ``py``: configures ``basepython = python``
+- ``pypyN``: configures ``basepython = pypyN``
+- ``pypy``: configures ``basepython = pypy``
+- ``jythonN``: configures ``basepython = jythonN``
+- ``jython``: configures ``basepython = jython``
+
+It is also possible to define what's know as *generative names*, where an
+individual section maps to multiple environments; for example:
+``py{37,38}-django{30,31}``, which would generate four environments, each
+consisting of two factors a piece: ``py37-django30`` (``py37``, ``django30``),
+``py37-django31`` (``py37``, ``django31``), ``py38-django30`` (``py38``,
+``django30``), and ``py38-django31`` (``py38``, ``django31``).  Combined, these
+features provide the ability to write very concise ``tox.ini`` files and is
+discussed further :ref:`below <generating-environments>`.
+
+
+tox environment settings
+------------------------
 
 Complete list of settings that you can put into ``testenv*`` sections:
 
@@ -402,7 +413,7 @@ Complete list of settings that you can put into ``testenv*`` sections:
 
     * passed through on all platforms: ``CURL_CA_BUNDLE``, ``PATH``,
       ``LANG``, ``LANGUAGE``,
-      ``LD_LIBRARY_PATH``, ``PIP_INDEX_URL``,
+      ``LD_LIBRARY_PATH``, ``PIP_INDEX_URL``, ``PIP_EXTRA_INDEX_URL``,
       ``REQUESTS_CA_BUNDLE``, ``SSL_CERT_FILE``,
       ``HTTP_PROXY``, ``HTTPS_PROXY``, ``NO_PROXY``
     * Windows: ``SYSTEMDRIVE``, ``SYSTEMROOT``, ``PATHEXT``, ``TEMP``, ``TMP``
@@ -569,6 +580,33 @@ Complete list of settings that you can put into ``testenv*`` sections:
        ``depends`` does not pull in dependencies into the run target, for example if you select ``py27,py36,coverage``
        via the ``-e`` tox will only run those three (even if ``coverage`` may specify as ``depends`` other targets too -
        such as ``py27, py35, py36, py37``).
+
+.. conf:: suicide_timeout ^ float ^ 0.0
+
+    .. versionadded:: 3.15.2
+
+    When an interrupt is sent via Ctrl+C, the SIGINT is sent to all foreground
+    processes. The :conf:``suicide_timeout`` gives the running process time to
+    cleanup and exit before receiving (in some cases, a duplicate) SIGINT from
+    tox.
+
+.. conf:: interrupt_timeout ^ float ^ 0.3
+
+    .. versionadded:: 3.15.0
+
+    When tox is interrupted, it propagates the signal to the child process
+    after :conf:``suicide_timeout`` seconds. If the process still hasn't exited
+    after :conf:``interrupt_timeout`` seconds, its sends a SIGTERM.
+
+.. conf:: terminate_timeout ^ float ^ 0.2
+
+    .. versionadded:: 3.15.0
+
+    When tox is interrupted, after waiting :conf:``interrupt_timeout`` seconds,
+    it propagates the signal to the child process, waits
+    :conf:``interrupt_timeout`` seconds, sends it a SIGTERM, waits
+    :conf:``terminate_timeout`` seconds, and sends it a SIGKILL if it hasn't
+    exited.
 
 Substitutions
 -------------
@@ -755,6 +793,8 @@ You can put default values in one section and reference them in others to avoid 
         {[base]deps}
 
 
+.. _generating-environments:
+
 Generating environments, conditional settings
 ---------------------------------------------
 
@@ -793,7 +833,7 @@ Let's go through this step by step.
 .. _generative-envlist:
 
 Generative envlist
-+++++++++++++++++++++++
+++++++++++++++++++
 
 ::
 
@@ -830,14 +870,36 @@ are stripped, so the following line defines the same environment names::
         flake
 
 
+.. _generative-sections:
+
+Generative section names
+++++++++++++++++++++++++
+
+.. versionadded:: 3.15
+
+Using similar syntax, it is possible to generate sections::
+
+    [testenv:py{27,36}-flake]
+
+This is equivalent to defining distinct sections::
+
+    $ tox -a
+    py27-flake
+    py36-flake
+
+It is useful when you need an environment different from the default one,
+but still want to take advantage of factor-conditional settings.
+
+
 .. _factors:
 
 Factors and factor-conditional settings
 ++++++++++++++++++++++++++++++++++++++++
 
-Parts of an environment name delimited by hyphens are called factors and can
-be used to set values conditionally. In list settings such as ``deps`` or
-``commands`` you can freely intermix optional lines with unconditional ones:
+As discussed previously, parts of an environment name delimited by hyphens are
+called factors and can be used to set values conditionally. In list settings
+such as ``deps`` or ``commands`` you can freely intermix optional lines with
+unconditional ones:
 
 .. code-block:: ini
 
@@ -887,6 +949,7 @@ special case for a combination of factors. Here is how you do it:
         py{27,36}-sqlite: mock  # mocking sqlite in python 2.x & 3.6
         !py34-sqlite: mock      # mocking sqlite, except in python 3.4
         sqlite-!py34: mock      # (same as the line above)
+        !py34,!py36: enum34     # use if neither py34 nor py36 are in the env name
 
 Take a look at the first ``deps`` line. It shows how you can special case
 something for a combination of factors, by just hyphenating the combining

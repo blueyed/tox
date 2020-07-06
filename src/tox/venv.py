@@ -43,7 +43,7 @@ class CreationConfig:
         lines = [
             "{} {}".format(self.base_resolved_python_sha256, self.base_resolved_python_path),
             "{} {:d} {:d} {:d}".format(
-                self.tox_version, self.sitepackages, self.usedevelop, self.alwayscopy
+                self.tox_version, self.sitepackages, self.usedevelop, self.alwayscopy,
             ),
         ]
         for dep in self.deps:
@@ -119,7 +119,7 @@ class VirtualEnv(object):
     def new_action(self, msg, *args):
         config = self.envconfig.config
         command_log = self.env_log.get_commandlog(
-            "test" if msg in ("run-test", "run-test-pre", "run-test-post") else "setup"
+            "test" if msg in ("run-test", "run-test-pre", "run-test-post") else "setup",
         )
         return Action(
             self.name,
@@ -130,6 +130,7 @@ class VirtualEnv(object):
             command_log,
             self.popen,
             self.envconfig.envpython,
+            self.envconfig.suicide_timeout,
             self.envconfig.interrupt_timeout,
             self.envconfig.terminate_timeout,
         )
@@ -138,7 +139,7 @@ class VirtualEnv(object):
         if self._result_json_path is None:
             if self.envconfig.config.option.resultjson:
                 self._result_json_path = get_unique_file(
-                    self.path, PARALLEL_RESULT_JSON_PREFIX, PARALLEL_RESULT_JSON_SUFFIX
+                    self.path, PARALLEL_RESULT_JSON_PREFIX, PARALLEL_RESULT_JSON_SUFFIX,
                 )
         return self._result_json_path
 
@@ -185,7 +186,7 @@ class VirtualEnv(object):
 
         if path is None:
             raise tox.exception.InvocationError(
-                "could not find executable {}".format(pipes.quote(name))
+                "could not find executable {}".format(pipes.quote(name)),
             )
 
         return str(path)  # will not be rewritten for reporting
@@ -213,8 +214,8 @@ class VirtualEnv(object):
                 "Maybe you forgot to specify a dependency? "
                 "See also the whitelist_externals envconfig setting.\n\n"
                 "DEPRECATION WARNING: this will be an error in tox 4 and above!".format(
-                    path, self.envconfig.envdir
-                )
+                    path, self.envconfig.envdir,
+                ),
             )
 
     def is_allowed_external(self, p):
@@ -310,10 +311,10 @@ class VirtualEnv(object):
         args = [self.envconfig.envpython, str(setup_py), "--name"]
         env = self._get_os_environ()
         output = action.popen(
-            args, cwd=setupdir, redirect=False, returnout=True, env=env, capture_err=False
+            args, cwd=setupdir, redirect=False, returnout=True, env=env, capture_err=False,
         )
         name = next(
-            (i for i in output.split("\n") if i and not i.startswith("pydev debugger:")), ""
+            (i for i in output.split("\n") if i and not i.startswith("pydev debugger:")), "",
         )
         args = [
             self.envconfig.envpython,
@@ -423,7 +424,7 @@ class VirtualEnv(object):
                     # equivalent to not setting it at all.
                     reporter.warning(
                         "Discarding $PYTHONPATH from environment, to override "
-                        "specify PYTHONPATH in 'passenv' in your configuration."
+                        "specify PYTHONPATH in 'passenv' in your configuration.",
                     )
                 env.pop("PYTHONPATH")
 
@@ -497,11 +498,11 @@ class VirtualEnv(object):
                 env = self._get_os_environ(is_test_command=True)
                 # Display PYTHONHASHSEED to assist with reproducibility.
                 action.setactivity(name, "PYTHONHASHSEED={!r}".format(env.get("PYTHONHASHSEED")))
-            for i, argv in enumerate(commands):
+            for i, argv in enumerate(filter(bool, commands)):
                 # have to make strings as _pcall changes argv[0] to a local()
                 # happens if the same environment is invoked twice
                 message = "commands[{}] | {}".format(
-                    i, " ".join([pipes.quote(str(x)) for x in argv])
+                    i, " ".join([pipes.quote(str(x)) for x in argv]),
                 )
                 action.setactivity(name, message)
                 # check to see if we need to ignore the return code
@@ -557,7 +558,8 @@ class VirtualEnv(object):
         # construct environment variables
         env.pop("VIRTUALENV_PYTHON", None)
         bin_dir = str(self.envconfig.envbindir)
-        env["PATH"] = os.pathsep.join([bin_dir, os.environ["PATH"]])
+        path = self.envconfig.setenv.get("PATH") or os.environ["PATH"]
+        env["PATH"] = os.pathsep.join([bin_dir, path])
         reporter.verbosity2("setting PATH={}".format(env["PATH"]))
 
         # get command
@@ -581,7 +583,7 @@ class VirtualEnv(object):
             self.status = (
                 "unresolvable substitution(s): {}. "
                 "Environment variables are missing or defined recursively.".format(
-                    ",".join(["'{}'".format(m) for m in self.envconfig._missing_subs])
+                    ",".join(["'{}'".format(m) for m in self.envconfig._missing_subs]),
                 )
             )
             return
@@ -739,7 +741,7 @@ def cleanup_for_venv(venv):
         venv.status = "error"
         reporter.error(
             "cowardly refusing to delete `envdir` (it does not look like a virtualenv): "
-            "{}".format(venv.path)
+            "{}".format(venv.path),
         )
         raise SystemExit(2)
 

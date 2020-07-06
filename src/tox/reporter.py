@@ -65,7 +65,7 @@ class Reporter(object):
         else:
             disp_durations = self.verbosity2
         disp_durations(
-            "{} finish: {} after {:.2f} seconds".format(name, msg, duration), bold=True
+            "{} finish: {} after {:.2f} seconds".format(name, msg, duration), bold=True,
         )
 
     def separator(self, of, msg, level):

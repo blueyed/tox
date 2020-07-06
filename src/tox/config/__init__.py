@@ -47,15 +47,20 @@ except ImportError:
 
 
 hookimpl = tox.hookimpl
-"""DEPRECATED - REMOVE - left for compatibility with plugins importing from here.
+# DEPRECATED - REMOVE - left for compatibility with plugins importing from here.
+# Import hookimpl directly from tox instead.
 
-Import hookimpl directly from tox instead.
-"""
 
 WITHIN_PROVISION = os.environ.get(str("TOX_PROVISION")) == "1"
 
+SUICIDE_TIMEOUT = 0.0
 INTERRUPT_TIMEOUT = 0.3
 TERMINATE_TIMEOUT = 0.2
+
+_FACTOR_LINE_PATTERN = re.compile(r"^([\w{}\.!,-]+)\:\s+(.+)")
+_ENVSTR_SPLIT_PATTERN = re.compile(r"((?:\{[^}]+\})+)|,")
+_ENVSTR_EXPAND_PATTERN = re.compile(r"\{([^}]+)\}")
+_WHITESPACE_PATTERN = re.compile(r"\s+")
 
 
 def get_plugin_manager(plugins=()):
@@ -87,7 +92,7 @@ class Parser:
                 super(HelpFormatter, self).__init__(prog, max_help_position=35, width=190)
 
         self.argparser = argparse.ArgumentParser(
-            description="tox options", add_help=False, prog="tox", formatter_class=HelpFormatter
+            description="tox options", add_help=False, prog="tox", formatter_class=HelpFormatter,
         )
         self._testenv_attr = []
 
@@ -239,7 +244,7 @@ class InstallcmdOption:
     def postprocess(self, testenv_config, value):
         if "{packages}" not in value:
             raise tox.exception.ConfigError(
-                "'install_command' must contain '{packages}' substitution"
+                "'install_command' must contain '{packages}' substitution",
             )
         return value
 
@@ -270,6 +275,11 @@ def parseconfig(args, plugins=()):
         pm.hook.tox_configure(config=config)  # post process config object
         break
     else:
+        parser = Parser()
+        pm.hook.tox_addoption(parser=parser)
+        # if no tox config file, now we need do a strict argument evaluation
+        # raise on unknown args
+        parser.parse_cli(args, strict=True)
         if option.help or option.helpini:
             return config
         msg = "tox config file (either {}) not found"
@@ -294,7 +304,7 @@ def propose_configs(cli_config_file):
             from_folder = py.path.local(cli_config_file)
         else:
             print(
-                "ERROR: {} is neither file or directory".format(cli_config_file), file=sys.stderr
+                "ERROR: {} is neither file or directory".format(cli_config_file), file=sys.stderr,
             )
             return
     for basename in INFO.CONFIG_CANDIDATES:
@@ -315,7 +325,7 @@ def parse_cli(args, pm):
         raise SystemExit(0)
     interpreters = Interpreters(hook=pm.hook)
     config = Config(
-        pluginmanager=pm, option=option, interpreters=interpreters, parser=parser, args=args
+        pluginmanager=pm, option=option, interpreters=interpreters, parser=parser, args=args,
     )
     return config, option
 
@@ -386,11 +396,15 @@ class SetenvDict(object):
 @tox.hookimpl
 def tox_addoption(parser):
     parser.add_argument(
-        "--version", action="store_true", help="report version information to stdout."
+        "--version", action="store_true", help="report version information to stdout.",
     )
     parser.add_argument("-h", "--help", action="store_true", help="show help about options")
     parser.add_argument(
-        "--help-ini", "--hi", action="store_true", dest="helpini", help="show help about ini-names"
+        "--help-ini",
+        "--hi",
+        action="store_true",
+        dest="helpini",
+        help="show help about ini-names",
     )
     add_verbosity_commands(parser)
     parser.add_argument(
@@ -412,7 +426,7 @@ def tox_addoption(parser):
         help="show list of all defined environments (with description if verbose)",
     )
     parser.add_argument(
-        "-c", dest="configfile", help="config file name or directory with 'tox.ini' file."
+        "-c", dest="configfile", help="config file name or directory with 'tox.ini' file.",
     )
     parser.add_argument(
         "-e",
@@ -431,7 +445,10 @@ def tox_addoption(parser):
     )
     parser.add_argument("--notest", action="store_true", help="skip invoking test commands.")
     parser.add_argument(
-        "--sdistonly", action="store_true", help="only perform the sdist packaging activity."
+        "--sdistonly", action="store_true", help="only perform the sdist packaging activity.",
+    )
+    parser.add_argument(
+        "--skip-pkg-install", action="store_true", help="skip package installation for this run",
     )
     add_parallel_flags(parser)
     parser.add_argument(
@@ -468,7 +485,7 @@ def tox_addoption(parser):
         "(pip by default).",
     )
     parser.add_argument(
-        "-r", "--recreate", action="store_true", help="force recreation of virtual environments"
+        "-r", "--recreate", action="store_true", help="force recreation of virtual environments",
     )
     parser.add_argument(
         "--result-json",
@@ -509,14 +526,18 @@ def tox_addoption(parser):
         help="override sitepackages setting to True in all envs",
     )
     parser.add_argument(
-        "--alwayscopy", action="store_true", help="override alwayscopy setting to True in all envs"
+        "--alwayscopy",
+        action="store_true",
+        help="override alwayscopy setting to True in all envs",
     )
 
     cli_skip_missing_interpreter(parser)
     parser.add_argument("--workdir", metavar="PATH", help="tox working directory")
 
     parser.add_argument(
-        "args", nargs="*", help="additional arguments available to command positional substitution"
+        "args",
+        nargs="*",
+        help="additional arguments available to command positional substitution",
     )
 
     def _set_envdir_from_devenv(testenv_config, value):
@@ -592,8 +613,8 @@ def tox_addoption(parser):
                     warnings.warn(
                         "conflicting basepython version (set {}, should be {}) for env '{}';"
                         "resolve conflict or set ignore_basepython_conflict".format(
-                            proposed_version, implied_version, testenv_config.envname
-                        )
+                            proposed_version, implied_version, testenv_config.envname,
+                        ),
                     )
 
         return proposed_python
@@ -620,11 +641,11 @@ def tox_addoption(parser):
     )
 
     parser.add_testenv_attribute(
-        name="envtmpdir", type="path", default="{envdir}/tmp", help="venv temporary directory"
+        name="envtmpdir", type="path", default="{envdir}/tmp", help="venv temporary directory",
     )
 
     parser.add_testenv_attribute(
-        name="envlogdir", type="path", default="{envdir}/log", help="venv log directory"
+        name="envlogdir", type="path", default="{envdir}/log", help="venv log directory",
     )
 
     parser.add_testenv_attribute(
@@ -643,10 +664,14 @@ def tox_addoption(parser):
 
     parser.add_testenv_attribute_obj(PosargsOption())
 
+    def skip_install_default(testenv_config, value):
+        return value is True or testenv_config.config.option.skip_pkg_install is True
+
     parser.add_testenv_attribute(
         name="skip_install",
         type="bool",
         default=False,
+        postprocess=skip_install_default,
         help="Do not install the current package. This can be used when you need the virtualenv "
         "management but do not want to install the current package",
     )
@@ -684,6 +709,7 @@ def tox_addoption(parser):
             "LD_LIBRARY_PATH",
             "PATH",
             "PIP_INDEX_URL",
+            "PIP_EXTRA_INDEX_URL",
             "REQUESTS_CA_BUNDLE",
             "SSL_CERT_FILE",
             "TERM",  # https://github.com/tox-dev/tox/issues/1441
@@ -817,6 +843,13 @@ def tox_addoption(parser):
     parser.add_testenv_attribute_obj(DepOption())
 
     parser.add_testenv_attribute(
+        name="suicide_timeout",
+        type="float",
+        default=SUICIDE_TIMEOUT,
+        help="timeout to allow process to exit before sending SIGINT",
+    )
+
+    parser.add_testenv_attribute(
         name="interrupt_timeout",
         type="float",
         default=INTERRUPT_TIMEOUT,
@@ -936,10 +969,17 @@ class TestenvConfig:
 
     def get_envbindir(self):
         """Path to directory where scripts/binaries reside."""
-        if tox.INFO.IS_WIN and "jython" not in self.basepython and "pypy" not in self.basepython:
-            return self.envdir.join("Scripts")
-        else:
-            return self.envdir.join("bin")
+        is_bin = (
+            isinstance(self.python_info, NoInterpreterInfo)
+            or tox.INFO.IS_WIN is False
+            or self.python_info.implementation == "Jython"
+            or (
+                tox.INFO.IS_WIN
+                and self.python_info.implementation == "PyPy"
+                and self.python_info.extra_version_info < (7, 3, 1)
+            )
+        )
+        return self.envdir.join("bin" if is_bin else "Scripts")
 
     @property
     def envbindir(self):
@@ -974,14 +1014,14 @@ class TestenvConfig:
     def getsupportedinterpreter(self):
         if tox.INFO.IS_WIN and self.basepython and "jython" in self.basepython:
             raise tox.exception.UnsupportedInterpreter(
-                "Jython/Windows does not support installing scripts"
+                "Jython/Windows does not support installing scripts",
             )
         info = self.config.interpreters.get_info(envconfig=self)
         if not info.executable:
             raise tox.exception.InterpreterNotFound(self.basepython)
         if not info.version_info:
             raise tox.exception.InvocationError(
-                "Failed to get version_info for {}: {}".format(info.name, info.err)
+                "Failed to get version_info for {}: {}".format(info.name, info.err),
             )
         return info.executable
 
@@ -1012,6 +1052,8 @@ class ParseIni(object):
         self._cfg = py.iniconfig.IniConfig(config.toxinipath, ini_data)
         previous_line_of = self._cfg.lineof
 
+        self.expand_section_names(self._cfg)
+
         def line_of_default_to_zero(section, name=None):
             at = previous_line_of(section, name=name)
             if at is None:
@@ -1028,7 +1070,7 @@ class ParseIni(object):
         context_name = getcontextname()
         if context_name == "jenkins":
             reader = SectionReader(
-                "tox:jenkins", self._cfg, prefix=prefix, fallbacksections=[fallbacksection]
+                "tox:jenkins", self._cfg, prefix=prefix, fallbacksections=[fallbacksection],
             )
             dist_share_default = "{toxworkdir}/distshare"
         elif not context_name:
@@ -1062,8 +1104,9 @@ class ParseIni(object):
 
         reader.addsubstitutions(distdir=config.distdir)
         config.distshare = reader.getpath("distshare", dist_share_default)
-        config.temp_dir = reader.getpath("temp_dir", "{toxworkdir}/.tmp")
         reader.addsubstitutions(distshare=config.distshare)
+        config.temp_dir = reader.getpath("temp_dir", "{toxworkdir}/.tmp")
+        reader.addsubstitutions(temp_dir=config.temp_dir)
         config.sdistsrc = reader.getpath("sdistsrc", None)
         config.setupdir = reader.getpath("setupdir", "{toxinidir}")
         config.logdir = config.toxworkdir.join("log")
@@ -1154,7 +1197,7 @@ class ParseIni(object):
                 "\n".join(
                     "{} failed with {} at {}".format(key, exc, trace)
                     for key, (exc, trace) in failures.items()
-                )
+                ),
             )
         for name in order:
             config.envconfigs[name] = results[name]
@@ -1183,7 +1226,7 @@ class ParseIni(object):
                 self._cfg.sections[section_name] = {}
             self._cfg.sections[section_name]["description"] = "meta tox"
             env_config = self.make_envconfig(
-                name, "{}{}".format(testenvprefix, name), reader._subs, config
+                name, "{}{}".format(testenvprefix, name), reader._subs, config,
             )
             env_config.deps = deps
             config.envconfigs[config.provision_tox_env] = env_config
@@ -1238,7 +1281,7 @@ class ParseIni(object):
             self._cfg.sections[section_name]["sitepackages"] = "False"
             self._cfg.sections[section_name]["description"] = "isolated packaging environment"
             config.envconfigs[name] = self.make_envconfig(
-                name, "{}{}".format(testenvprefix, name), reader._subs, config
+                name, "{}{}".format(testenvprefix, name), reader._subs, config,
             )
 
     def _list_section_factors(self, section):
@@ -1278,7 +1321,7 @@ class ParseIni(object):
                 elif atype == "basepython":
                     no_fallback = name in (config.provision_tox_env,)
                     res = reader.getstring(
-                        env_attr.name, env_attr.default, replace=replace, no_fallback=no_fallback
+                        env_attr.name, env_attr.default, replace=replace, no_fallback=no_fallback,
                     )
                 elif atype == "space-separated-list":
                     res = reader.getlist(env_attr.name, sep=" ")
@@ -1350,6 +1393,28 @@ class ParseIni(object):
             raise tox.exception.ConfigError(msg)
         return env_list, all_envs, _split_env(from_config), envlist_explicit
 
+    @staticmethod
+    def expand_section_names(config):
+        """Generative section names.
+
+        Allow writing section as [testenv:py{36,37}-cov]
+        The parser will see it as two different sections: [testenv:py36-cov], [testenv:py37-cov]
+
+        """
+        factor_re = re.compile(r"\{\s*([\w\s,]+)\s*\}")
+        split_re = re.compile(r"\s*,\s*")
+        to_remove = set()
+        for section in list(config.sections):
+            split_section = factor_re.split(section)
+            for parts in itertools.product(*map(split_re.split, split_section)):
+                section_name = "".join(parts)
+                if section_name not in config.sections:
+                    config.sections[section_name] = config.sections[section]
+                    to_remove.add(section)
+
+        for section in to_remove:
+            del config.sections[section]
+
 
 def _split_env(env):
     """if handed a list, action="append" was used for -e """
@@ -1388,12 +1453,12 @@ def _split_factor_expr_all(expr):
 
 def _expand_envstr(envstr):
     # split by commas not in groups
-    tokens = re.split(r"((?:\{[^}]+\})+)|,", envstr)
+    tokens = _ENVSTR_SPLIT_PATTERN.split(envstr)
     envlist = ["".join(g).strip() for k, g in itertools.groupby(tokens, key=bool) if k]
 
     def expand(env):
-        tokens = re.split(r"\{([^}]+)\}", env)
-        parts = [re.sub(r"\s+", "", token).split(",") for token in tokens]
+        tokens = _ENVSTR_EXPAND_PATTERN.split(env)
+        parts = [_WHITESPACE_PATTERN.sub("", token).split(",") for token in tokens]
         return ["".join(variant) for variant in itertools.product(*parts)]
 
     return mapcat(expand, envlist)
@@ -1426,10 +1491,8 @@ class IndexServerConfig:
 
 
 is_section_substitution = re.compile(r"{\[[^{}\s]+\]\S+?}").match
-"""Check value matches substitution form of referencing value from other section.
-
-E.g. {[base]commands}
-"""
+# Check value matches substitution form of referencing value from other section.
+# E.g. {[base]commands}
 
 
 class SectionReader:
@@ -1517,7 +1580,7 @@ class SectionReader:
                 s = False
             else:
                 raise tox.exception.ConfigError(
-                    "{}: boolean value {!r} needs to be 'True' or 'False'".format(name, s)
+                    "{}: boolean value {!r} needs to be 'True' or 'False'".format(name, s),
                 )
         return s
 
@@ -1559,7 +1622,7 @@ class SectionReader:
 
     def _apply_factors(self, s):
         def factor_line(line):
-            m = re.search(r"^([\w{}\.!,-]+)\:\s+(.+)", line)
+            m = _FACTOR_LINE_PATTERN.search(line)
             if not m:
                 return line
 
@@ -1586,7 +1649,7 @@ class SectionReader:
             if not section_name.startswith(testenvprefix):
                 raise tox.exception.ConfigError(
                     "substitution env:{!r}: unknown or recursive definition in"
-                    " section {!r}.".format(value, section_name)
+                    " section {!r}.".format(value, section_name),
                 )
             raise
         return replaced
@@ -1648,7 +1711,7 @@ class Replacer:
             sub_type = g["sub_type"]
         except KeyError:
             raise tox.exception.ConfigError(
-                "Malformed substitution; no substitution type provided"
+                "Malformed substitution; no substitution type provided",
             )
 
         if sub_type == "env":
@@ -1659,7 +1722,7 @@ class Replacer:
             return match.group("default_value")
         if sub_type is not None:
             raise tox.exception.ConfigError(
-                "No support for the {} substitution type".format(sub_type)
+                "No support for the {} substitution type".format(sub_type),
             )
         return self._replace_substitution(match)
 
@@ -1683,11 +1746,11 @@ class Replacer:
             if section in cfg and item in cfg[section]:
                 if (section, item) in self.reader._subststack:
                     raise ValueError(
-                        "{} already in {}".format((section, item), self.reader._subststack)
+                        "{} already in {}".format((section, item), self.reader._subststack),
                     )
                 x = str(cfg[section][item])
                 return self.reader._replace(
-                    x, name=item, section_name=section, crossonly=self.crossonly
+                    x, name=item, section_name=section, crossonly=self.crossonly,
                 )
 
         raise tox.exception.ConfigError("substitution key {!r} not found".format(key))
@@ -1739,8 +1802,8 @@ class _ArgvlistReader:
             if current_command:
                 raise tox.exception.ConfigError(
                     "line-continuation ends nowhere while resolving for [{}] {}".format(
-                        reader.section_name, "commands"
-                    )
+                        reader.section_name, "commands",
+                    ),
                 )
         return commands
 

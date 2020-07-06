@@ -19,7 +19,7 @@ import py
 import tox
 from tox import reporter
 from tox.action import Action
-from tox.config import INTERRUPT_TIMEOUT, TERMINATE_TIMEOUT, parseconfig
+from tox.config import INTERRUPT_TIMEOUT, SUICIDE_TIMEOUT, TERMINATE_TIMEOUT, parseconfig
 from tox.config.parallel import ENV_VAR_KEY_PRIVATE as PARALLEL_ENV_VAR_KEY_PRIVATE
 from tox.config.parallel import OFF_VALUE as PARALLEL_OFF
 from tox.logs.result import ResultLog
@@ -111,7 +111,7 @@ class Session(object):
             need_to_run = OrderedDict((v, self.getvenv(v)) for v in self._evaluated_env_list)
             try:
                 venv_order = stable_topological_sort(
-                    OrderedDict((name, v.envconfig.depends) for name, v in need_to_run.items())
+                    OrderedDict((name, v.envconfig.depends) for name, v in need_to_run.items()),
                 )
 
                 venvs = OrderedDict((v, need_to_run[v]) for v in venv_order)
@@ -150,7 +150,7 @@ class Session(object):
             visited.add(name)
             if tox_env_filter_re is not None and tox_env_filter_re.match(name):
                 msg = "skip environment {}, matches filter {!r}".format(
-                    name, tox_env_filter_re.pattern
+                    name, tox_env_filter_re.pattern,
                 )
                 reporter.verbosity1(msg)
                 continue
@@ -170,13 +170,14 @@ class Session(object):
             self.resultlog.command_log,
             self.popen,
             sys.executable,
+            SUICIDE_TIMEOUT,
             INTERRUPT_TIMEOUT,
             TERMINATE_TIMEOUT,
         )
 
     def runcommand(self):
         reporter.using(
-            "tox-{} from {} (pid {})".format(tox.__version__, tox.__file__, os.getpid())
+            "tox-{} from {} (pid {})".format(tox.__version__, tox.__file__, os.getpid()),
         )
         show_description = reporter.has_level(reporter.Verbosity.DEFAULT)
         if self.config.run_provision:
@@ -259,7 +260,7 @@ class Session(object):
                     report = reporter.error
             elif status == "platform mismatch":
                 msg = " {}: {} ({!r} does not match {!r})".format(
-                    venv.envconfig.envname, str(status), sys.platform, venv.envconfig.platform
+                    venv.envconfig.envname, str(status), sys.platform, venv.envconfig.platform,
                 )
                 report = reporter.skip
             elif status and status == "ignored failed command":

@@ -32,6 +32,7 @@ class Action(object):
         command_log,
         popen,
         python,
+        suicide_timeout,
         interrupt_timeout,
         terminate_timeout,
     ):
@@ -45,6 +46,7 @@ class Action(object):
         self.command_log = command_log
         self._timed_report = None
         self.python = python
+        self.suicide_timeout = suicide_timeout
         self.interrupt_timeout = interrupt_timeout
         self.terminate_timeout = terminate_timeout
 
@@ -87,7 +89,7 @@ class Action(object):
         cmd_args = [str(x) for x in self._rewrite_args(cwd, args)]
         cmd_args_shell = " ".join(pipes.quote(i) for i in cmd_args)
         stream_getter = self._get_standard_streams(
-            capture_err, cmd_args_shell, redirect, returnout, cwd
+            capture_err, cmd_args_shell, redirect, returnout, cwd,
         )
         exit_code, output = None, None
         with stream_getter as (fin, out_path, stderr, stdout):
@@ -190,7 +192,7 @@ class Action(object):
     def handle_interrupt(self, process):
         """A three level stop mechanism for children - INT -> TERM -> KILL"""
         msg = "from {} {{}} pid {}".format(os.getpid(), process.pid)
-        if process.poll() is None:
+        if self._wait(process, self.suicide_timeout) is None:
             self.info("KeyboardInterrupt", msg.format("SIGINT"))
             process.send_signal(signal.CTRL_C_EVENT if sys.platform == "win32" else signal.SIGINT)
             if self._wait(process, self.interrupt_timeout) is None:
