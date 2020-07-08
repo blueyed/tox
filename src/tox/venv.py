@@ -4,6 +4,7 @@ import os
 import pipes
 import re
 import sys
+import time
 from itertools import chain
 
 import py
@@ -498,7 +499,13 @@ class VirtualEnv(object):
                 env = self._get_os_environ(is_test_command=True)
                 # Display PYTHONHASHSEED to assist with reproducibility.
                 action.setactivity(name, "PYTHONHASHSEED={!r}".format(env.get("PYTHONHASHSEED")))
+
+            use_gitlab_folds = os.getenv("GITLAB_CI") == "true"
             for i, argv in enumerate(filter(bool, commands)):
+                if use_gitlab_folds:
+                    fold_name = "tox_action_{}".format(i)
+                    print('section_start:{:d}:{}\r\x1b[0K'
+                          .format(int(time.time()), fold_name), end="")
                 # have to make strings as _pcall changes argv[0] to a local()
                 # happens if the same environment is invoked twice
                 message = "commands[{}] | {}".format(
@@ -525,6 +532,9 @@ class VirtualEnv(object):
                         ignore_ret=ignore_ret,
                         is_test_command=True,
                     )
+                    if use_gitlab_folds:
+                        print('section_end:{:d}:{}\r\x1b[0K'
+                              .format(int(time.time()), fold_name), end="")
                 except tox.exception.InvocationError as err:
                     if ignore_outcome:
                         msg = "command failed but result from testenv is ignored\ncmd:"
