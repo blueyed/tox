@@ -11,6 +11,37 @@ with advance notice in the **Deprecations** section of releases.
 
 .. towncrier release notes start
 
+v3.17.1 (2020-07-15)
+--------------------
+
+Bugfixes
+^^^^^^^^
+
+- Fix tests when the ``HOSTNAME`` environment variable is set, but empty string - by :user:`hroncok`
+  `#1616 <https://github.com/tox-dev/tox/issues/1616>`_
+
+
+v3.17.0 (2020-07-14)
+--------------------
+
+Features
+^^^^^^^^
+
+- The long arguments ``--verbose`` and ``--quiet`` (rather than only their short forms, ``-v`` and ``-q``) are now accepted.
+  `#1612 <https://github.com/tox-dev/tox/issues/1612>`_
+- The ``ResultLog`` now prefers ``HOSTNAME`` environment variable value (if set) over the full qualified domain name of localhost.
+  This makes it possible to disable an undesired DNS lookup,
+  which happened on all ``tox`` invocations, including trivial ones - by :user:`hroncok`
+  `#1615 <https://github.com/tox-dev/tox/issues/1615>`_
+
+
+Documentation
+^^^^^^^^^^^^^
+
+- Update packaging information for Flit.
+  `#1613 <https://github.com/tox-dev/tox/issues/1613>`_
+
+
 v3.16.1 (2020-06-29)
 --------------------
 
