@@ -1,3 +1,4 @@
+import functools
 import os
 import signal
 import socket
@@ -17,7 +18,13 @@ def create_fake_pkg(tmpdir):
     return pkg
 
 
-def test_pre_set_header():
+@pytest.fixture()
+def clean_hostname_envvar(monkeypatch):
+    monkeypatch.delenv("HOSTNAME", raising=False)
+    return functools.partial(monkeypatch.setenv, "HOSTNAME")
+
+
+def test_pre_set_header(clean_hostname_envvar):
     replog = ResultLog()
     d = replog.dict
     assert replog.dict == d
@@ -30,7 +37,7 @@ def test_pre_set_header():
     assert replog2.dict == replog.dict
 
 
-def test_set_header(pkg):
+def test_set_header(pkg, clean_hostname_envvar):
     replog = ResultLog()
     d = replog.dict
     assert replog.dict == d
@@ -46,6 +53,12 @@ def test_set_header(pkg):
     data = replog.dumps_json()
     replog2 = ResultLog.from_json(data)
     assert replog2.dict == replog.dict
+
+
+def test_hosname_via_envvar(clean_hostname_envvar):
+    clean_hostname_envvar("toxicity")
+    replog = ResultLog()
+    assert replog.dict["host"] == "toxicity"
 
 
 def test_addenv_setpython(pkg):
